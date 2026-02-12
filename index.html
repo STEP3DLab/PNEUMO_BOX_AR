@@ -134,7 +134,7 @@
           <span class="nav-label text-[9px] font-bold mt-1 uppercase tracking-wider text-slate-400">Данные</span>
         </button>
       </div>
-      <div class="text-[9px] font-bold text-slate-300 -rotate-90 whitespace-nowrap mb-8 tracking-widest">V 1.0.4 MVP</div>
+      <div class="text-[9px] font-bold text-slate-300 -rotate-90 whitespace-nowrap mb-8 tracking-widest">V 1.0.5 Release</div>
     </aside>
 
     <main class="flex-1 relative overflow-hidden h-full w-full">
@@ -335,8 +335,30 @@
             </svg>
           </div>
 
+          <!-- QR SCANNER UI -->
+          <div id="qrScannerUI" class="absolute inset-0 flex flex-col items-center justify-center z-50 hidden bg-black/60 backdrop-blur-sm">
+             <div class="relative w-72 h-72 border-2 border-white/30 rounded-3xl overflow-hidden shadow-2xl">
+                <!-- Corner Indicators -->
+                <div class="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-white"></div>
+                <div class="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-white"></div>
+                <div class="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-white"></div>
+                <div class="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-white"></div>
+                
+                <!-- Scanning Line -->
+                <div class="absolute top-0 left-0 w-full h-1 bg-rssu-gold shadow-[0_0_15px_#D4AF37] animate-scanLine"></div>
+                
+                <!-- Helper Text inside frame -->
+                <div class="absolute inset-0 flex items-center justify-center">
+                    <button onclick="handleQrScan()" class="bg-white/10 hover:bg-white/20 text-white border border-white/50 px-4 py-2 rounded-lg backdrop-blur-md text-xs font-mono font-bold uppercase transition-all active:scale-95 flex items-center gap-2">
+                       <i data-lucide="qr-code" class="w-4 h-4"></i> Тестовый QR
+                    </button>
+                </div>
+             </div>
+             <p class="mt-8 text-white font-mono text-xs uppercase tracking-widest bg-black/50 px-6 py-2 rounded-full backdrop-blur-md border border-white/10">Наведите камеру на маркер</p>
+          </div>
+
           <!-- Calibration UI -->
-          <div id="calibrationUI" class="absolute inset-0 flex flex-col items-center justify-center z-50">
+          <div id="calibrationUI" class="absolute inset-0 flex flex-col items-center justify-center z-50 hidden">
             <div class="w-64 h-64 border-2 border-white/50 rounded-3xl relative animate-pulse flex items-center justify-center">
                <div class="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-rssu-gold -mt-1 -ml-1"></div>
                <div class="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-rssu-gold -mt-1 -mr-1"></div>
@@ -347,6 +369,35 @@
             </div>
             <p class="mt-8 text-white font-mono text-xs uppercase tracking-widest bg-black/50 px-4 py-1 rounded backdrop-blur-md">Calibrating AR Space...</p>
           </div>
+          
+          <!-- Report UI -->
+           <div id="reportUI" class="absolute inset-0 z-[60] bg-slate-50 flex flex-col animate-fadeIn overflow-y-auto hidden">
+              <div class="bg-rssu-blue p-8 pb-12 rounded-b-[2.5rem] relative overflow-hidden shrink-0 safe-top shadow-2xl">
+                   <h2 class="text-white text-xl font-bold uppercase tracking-wider text-center mb-1">Результат Сессии</h2>
+                   <p class="text-blue-300 text-center text-[10px] font-mono uppercase tracking-widest">STUDENT_MODE</p>
+                   <div class="flex justify-center mt-8">
+                       <div class="relative w-36 h-36 flex flex-col items-center justify-center bg-white/5 rounded-full backdrop-blur-md border border-white/20 shadow-2xl">
+                           <span class="text-5xl font-black text-white tracking-tighter" id="report-score">0</span>
+                           <span class="text-[10px] uppercase text-white/60 font-bold mt-1">Баллов</span>
+                       </div>
+                   </div>
+              </div>
+              <div class="px-6 -mt-8 space-y-4 pb-10 max-w-2xl mx-auto w-full">
+                  <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-100">
+                      <div class="flex items-center gap-3 mb-4 pb-2 border-b border-slate-100">
+                        <div class="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600"><i data-lucide="sparkles" class="w-4 h-4"></i></div>
+                        <h3 class="text-slate-800 font-bold text-sm uppercase tracking-wider">AI Анализ</h3>
+                      </div>
+                      <p class="text-slate-600 text-sm font-medium leading-relaxed font-mono" id="report-feedback">
+                          Сессия завершена. Декомпрессия выполнена успешно. Траектория в пределах нормы.
+                      </p>
+                  </div>
+                  <div class="flex gap-3 mt-4">
+                      <button onclick="switchView('HOME'); document.getElementById('reportUI').classList.add('hidden');" class="flex-1 bg-rssu-blue text-white py-4 rounded-xl font-bold uppercase tracking-wider shadow-xl active:scale-95 transition-transform text-xs">В меню</button>
+                  </div>
+              </div>
+          </div>
+
         </div>
 
         <div class="absolute inset-0 pointer-events-none z-10 opacity-30" style="background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 50px 50px;"></div>
@@ -361,15 +412,15 @@
               </button>
               <div class="glass-dark border border-white/10 rounded-lg p-2 flex flex-col gap-1 w-fit animate-slideUp">
                  <div class="flex items-center gap-2">
-                    <div class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_#22c55e]"></div>
-                    <span class="text-[10px] text-white/80 font-mono uppercase hidden md:inline">SYSTEM_ONLINE</span>
+                    <div id="system-status-dot" class="w-2 h-2 rounded-full bg-red-500"></div>
+                    <span id="system-status-text" class="text-[10px] text-white/80 font-mono uppercase hidden md:inline">SYSTEM_OFFLINE</span>
                  </div>
                  <div id="hud-role-badge" class="text-[9px] font-bold px-1.5 py-0.5 rounded border border-rssu-gold text-rssu-gold bg-yellow-900/20 uppercase text-center hidden">STUDENT</div>
               </div>
            </div>
            <div class="flex flex-col items-end gap-2 pointer-events-auto">
               <div class="flex gap-2">
-                 <button id="btn-finish" class="hidden bg-green-600/90 hover:bg-green-500 backdrop-blur-md text-white rounded-lg px-4 py-2 text-xs font-mono font-bold uppercase tracking-wider border border-green-400/50 shadow-lg active:scale-95">Finish</button>
+                 <button id="btn-finish" onclick="finishSession()" class="hidden bg-green-600/90 hover:bg-green-500 backdrop-blur-md text-white rounded-lg px-4 py-2 text-xs font-mono font-bold uppercase tracking-wider border border-green-400/50 shadow-lg active:scale-95">Finish</button>
                  <button id="btn-record" class="hidden flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-mono font-bold transition-all border backdrop-blur-md glass-dark border-white/10 text-slate-300">
                    <div class="w-2 h-2 rounded-full bg-red-500"></div> REC
                  </button>
@@ -552,7 +603,7 @@
         const mobBtn = document.getElementById(`nav-mob-${key}`);
         const deskBtn = document.getElementById(`nav-desk-${key}`);
         
-        if (!mobBtn || !deskBtn) return; // Prevent TypeError if element is missing
+        if (!mobBtn || !deskBtn) return; 
         
         if (v === viewName) {
           // Mobile active styles
@@ -611,27 +662,70 @@
       }
       if (stream) video.srcObject = stream;
 
-      // Reset UI
-      document.getElementById('calibrationUI').classList.remove('hidden');
+      // Reset UI Elements
+      document.getElementById('calibrationUI').classList.add('hidden');
       document.getElementById('arOverlay').classList.add('opacity-0');
       document.getElementById('panel-instructor').classList.add('hidden');
       document.getElementById('panel-student').classList.add('hidden');
+      document.getElementById('qrScannerUI').classList.add('hidden');
       
-      // Simulate Calibration
-      setTimeout(() => {
-        document.getElementById('calibrationUI').classList.add('hidden');
-        document.getElementById('arOverlay').classList.remove('opacity-0');
+      // Update System Status
+      const statusDot = document.getElementById('system-status-dot');
+      const statusText = document.getElementById('system-status-text');
+      statusDot.classList.replace('bg-green-500', 'bg-red-500');
+      statusDot.classList.remove('shadow-[0_0_8px_#22c55e]');
+      statusText.innerText = "SYSTEM_OFFLINE";
+      
+      if (state.role === 'STUDENT') {
+         // Show QR Scanner
+         document.getElementById('qrScannerUI').classList.remove('hidden');
+         document.getElementById('hud-role-badge').classList.remove('hidden');
+         document.getElementById('btn-finish').classList.remove('hidden');
+      } else if (state.role === 'INSTRUCTOR') {
+         // Skip to Calibration
+         startCalibration();
+      }
+    }
+    
+    function handleQrScan() {
+       if (navigator.vibrate) navigator.vibrate([100]);
+       
+       // Hide QR
+       document.getElementById('qrScannerUI').classList.add('hidden');
+       
+       // Show Success
+       const toast = document.getElementById('ai-toast');
+       const text = document.getElementById('ai-toast-text');
+       text.innerText = "Устройство Pneumo-Box подключено. Серийный номер: PB-2026-X1";
+       toast.classList.remove('hidden');
+       setTimeout(() => toast.classList.add('hidden'), 3000);
+
+       // Update System Status
+       const statusDot = document.getElementById('system-status-dot');
+       const statusText = document.getElementById('system-status-text');
+       statusDot.classList.replace('bg-red-500', 'bg-green-500');
+       statusDot.classList.add('shadow-[0_0_8px_#22c55e]');
+       statusText.innerText = "SYSTEM_ONLINE";
+       
+       startCalibration();
+    }
+    
+    function startCalibration() {
+        document.getElementById('calibrationUI').classList.remove('hidden');
         
-        if (state.role === 'INSTRUCTOR') {
-          document.getElementById('panel-instructor').classList.remove('hidden');
-          document.getElementById('panel-instructor').classList.add('flex');
-        } else {
-          document.getElementById('panel-student').classList.remove('hidden');
-          document.getElementById('panel-student').classList.add('flex');
-          document.getElementById('hud-role-badge').classList.remove('hidden');
-          renderChecklist();
-        }
-      }, 2000);
+        setTimeout(() => {
+            document.getElementById('calibrationUI').classList.add('hidden');
+            document.getElementById('arOverlay').classList.remove('opacity-0');
+            
+            if (state.role === 'INSTRUCTOR') {
+              document.getElementById('panel-instructor').classList.remove('hidden');
+              document.getElementById('panel-instructor').classList.add('flex');
+            } else {
+              document.getElementById('panel-student').classList.remove('hidden');
+              document.getElementById('panel-student').classList.add('flex');
+              renderChecklist();
+            }
+        }, 2000);
     }
 
     function stopCamera() {
@@ -641,6 +735,17 @@
     function startSimulation(role) {
       state.role = role;
       switchView('AR_SIMULATION');
+    }
+
+    function finishSession() {
+      if (navigator.vibrate) navigator.vibrate([50, 50]);
+      
+      const completed = state.checklist.filter(s => s.check).length;
+      const total = state.checklist.length;
+      const score = Math.round((completed / total) * 100);
+      
+      document.getElementById('report-score').innerText = score;
+      document.getElementById('reportUI').classList.remove('hidden');
     }
 
     // --- STUDENT LOGIC ---
