@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="ru" class="h-full bg-black">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
+  <meta name="theme-color" content="#004077" />
+  <title>Pneumo-Box AR | РГСУ</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            rssu: {
+              blue: '#004077',
+              gold: '#D4AF37',
+              light: '#F0F4F8',
+              dark: '#00284D',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      background-color: #000;
+      overscroll-behavior-y: none;
+      -webkit-tap-highlight-color: transparent;
+      font-family: 'Inter', sans-serif;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+    }
+
+    .glass-panel { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); border: 1px solid rgba(255, 255, 255, 0.6); }
+    .glass-dark { background: rgba(10, 10, 10, 0.75); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); border: 1px solid rgba(255, 255, 255, 0.15); }
+    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 4px; }
+    .bg-noise { background-image: url('data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.65%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22 opacity=%220.05%22/%3E%3C/svg%3E'); }
+    
+    @keyframes scan { 0% { top: 0%; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+    .animate-scan { animation: scan 2s linear infinite; }
+    @keyframes slideUp { 0% { transform: translateY(20px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+    .animate-slideUp { animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    @keyframes fadeIn { 0% { opacity: 0; } 100% { opacity: 1; } }
+    .animate-fadeIn { animation: fadeIn 0.5s ease-out forwards; }
+    @keyframes pulse-fast { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+    .animate-pulse-fast { animation: pulse-fast 1s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+    @keyframes scanLine { 0% { transform: translateY(0); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translateY(300px); opacity: 0; } }
+    .animate-scanLine { animation: scanLine 1.5s ease-in-out infinite; }
+
+    .safe-top { padding-top: env(safe-area-inset-top, 16px); }
+    .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 16px); }
+
+    /* Hide views by default */
+    .view-container { display: none; height: 100%; width: 100%; }
+    .view-active { display: flex; }
+  </style>
+</head>
+<body class="text-slate-900 selection:bg-rssu-blue selection:text-white">
+
+  <!-- SPLASH SCREEN -->
+  <div id="splashScreen" class="absolute inset-0 z-[100] bg-rssu-blue flex flex-col items-center justify-center overflow-hidden transition-opacity duration-500">
+    <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_#ffffff_0%,_transparent_70%)] scale-150 animate-pulse"></div>
+    <div class="bg-white p-6 rounded-3xl shadow-2xl mb-8 relative z-10 scale-110">
+      <img src="https://upload.wikimedia.org/wikipedia/ru/4/42/%D0%A0%D0%93%D0%A1%D0%A3_%D0%BB%D0%BE%D0%B3%D0%BE%D1%82%D0%B8%D0%BF.png" alt="РГСУ" class="w-28 h-28 object-contain" />
+    </div>
+    <h1 class="text-white text-3xl font-extrabold tracking-widest uppercase mb-3 z-10 drop-shadow-md">Pneumo-Box AR</h1>
+    <div class="h-1.5 w-48 bg-rssu-dark rounded-full overflow-hidden z-10 relative">
+       <div class="absolute top-0 left-0 h-full bg-rssu-gold w-1/2 animate-scanLine rounded-full"></div>
+    </div>
+    <p class="absolute bottom-10 text-white/60 text-sm font-semibold uppercase tracking-widest z-10">Технопарк РГСУ • 2026</p>
+  </div>
+
+  <div id="appRoot" class="h-full w-full flex flex-col md:flex-row hidden opacity-0 transition-opacity duration-500 bg-slate-50">
+    
+    <!-- NAVIGATION (Mobile & Desktop) -->
+    <nav class="md:hidden fixed bottom-6 left-4 right-4 z-50">
+      <div class="glass-panel rounded-3xl shadow-[0_20px_40px_rgba(0,0,0,0.1)] flex justify-around items-center h-20 max-w-md mx-auto relative">
+        <button onclick="switchView('HOME')" id="nav-mob-HOME" class="nav-btn relative flex flex-col items-center justify-center w-full h-full transition-all duration-300 text-slate-400">
+          <div class="nav-indicator hidden absolute top-0 left-1/2 -translate-x-1/2 w-10 h-1.5 bg-rssu-gold rounded-full shadow-[0_0_15px_rgba(212,175,55,0.8)] animate-pulse"></div>
+          <div class="nav-icon-wrapper transform transition-all duration-300 active:scale-90"><i data-lucide="home"></i></div>
+          <span class="nav-label text-[9px] font-bold tracking-widest uppercase transition-all duration-300 mt-1 opacity-0 translate-y-2">Главная</span>
+        </button>
+        <button onclick="switchView('AR_SIMULATION')" id="nav-mob-AR" class="nav-btn relative flex flex-col items-center justify-center w-full h-full transition-all duration-300 text-slate-400">
+          <div class="nav-indicator hidden absolute top-0 left-1/2 -translate-x-1/2 w-10 h-1.5 bg-rssu-gold rounded-full shadow-[0_0_15px_rgba(212,175,55,0.8)] animate-pulse"></div>
+          <div class="nav-icon-wrapper transform transition-all duration-300 active:scale-90"><i data-lucide="camera"></i></div>
+          <span class="nav-label text-[9px] font-bold tracking-widest uppercase transition-all duration-300 mt-1 opacity-0 translate-y-2">AR Режим</span>
+        </button>
+        <button onclick="switchView('RESEARCH_DATA')" id="nav-mob-DATA" class="nav-btn relative flex flex-col items-center justify-center w-full h-full transition-all duration-300 text-slate-400">
+          <div class="nav-indicator hidden absolute top-0 left-1/2 -translate-x-1/2 w-10 h-1.5 bg-rssu-gold rounded-full shadow-[0_0_15px_rgba(212,175,55,0.8)] animate-pulse"></div>
+          <div class="nav-icon-wrapper transform transition-all duration-300 active:scale-90"><i data-lucide="bar-chart-2"></i></div>
+          <span class="nav-label text-[9px] font-bold tracking-widest uppercase transition-all duration-300 mt-1 opacity-0 translate-y-2">Данные</span>
+        </button>
+      </div>
+    </nav>
+
+    <aside class="hidden md:flex flex-col w-24 h-full bg-white border-r border-slate-200 z-50 py-8 items-center justify-between shrink-0">
+      <div class="w-12 h-12 bg-rssu-blue rounded-xl flex items-center justify-center shadow-lg mb-8">
+         <img src="https://upload.wikimedia.org/wikipedia/ru/4/42/%D0%A0%D0%93%D0%A1%D0%A3_%D0%BB%D0%BE%D0%B3%D0%BE%D1%82%D0%B8%D0%BF.png" alt="Logo" class="w-8 h-8 object-contain opacity-90 invert brightness-0" />
+      </div>
+      <div class="flex flex-col gap-8 w-full">
+        <button onclick="switchView('HOME')" id="nav-desk-HOME" class="nav-btn-desk relative flex flex-col items-center justify-center w-full py-2 transition-all duration-300 group">
+          <div class="nav-indicator hidden absolute right-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-rssu-gold rounded-l-full"></div>
+          <div class="nav-icon-wrapper p-3 rounded-2xl transition-all duration-300 text-slate-400 hover:bg-slate-50"><i data-lucide="home"></i></div>
+          <span class="nav-label text-[9px] font-bold mt-1 uppercase tracking-wider text-slate-400">Главная</span>
+        </button>
+        <button onclick="switchView('AR_SIMULATION')" id="nav-desk-AR" class="nav-btn-desk relative flex flex-col items-center justify-center w-full py-2 transition-all duration-300 group">
+          <div class="nav-indicator hidden absolute right-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-rssu-gold rounded-l-full"></div>
+          <div class="nav-icon-wrapper p-3 rounded-2xl transition-all duration-300 text-slate-400 hover:bg-slate-50"><i data-lucide="camera"></i></div>
+          <span class="nav-label text-[9px] font-bold mt-1 uppercase tracking-wider text-slate-400">AR Режим</span>
+        </button>
+        <button onclick="switchView('RESEARCH_DATA')" id="nav-desk-DATA" class="nav-btn-desk relative flex flex-col items-center justify-center w-full py-2 transition-all duration-300 group">
+          <div class="nav-indicator hidden absolute right-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-rssu-gold rounded-l-full"></div>
+          <div class="nav-icon-wrapper p-3 rounded-2xl transition-all duration-300 text-slate-400 hover:bg-slate-50"><i data-lucide="bar-chart-2"></i></div>
+          <span class="nav-label text-[9px] font-bold mt-1 uppercase tracking-wider text-slate-400">Данные</span>
+        </button>
+      </div>
+      <div class="text-[9px] font-bold text-slate-300 -rotate-90 whitespace-nowrap mb-8 tracking-widest">V 1.0.4 MVP</div>
+    </aside>
+
+    <main class="flex-1 relative overflow-hidden h-full w-full">
+      
+      <!-- VIEW: HOME (INFO MODE) -->
+      <div id="view-HOME" class="view-container bg-rssu-light bg-noise overflow-y-auto pb-32 md:pb-0 custom-scrollbar flex-col">
+        <div class="max-w-7xl mx-auto md:h-full md:flex md:flex-col w-full">
+          <!-- Header -->
+          <div class="bg-rssu-blue text-white p-6 pt-12 md:pt-8 md:px-12 rounded-b-[2.5rem] md:rounded-none md:rounded-b-[3rem] shadow-2xl relative overflow-hidden border-b-4 border-rssu-gold shrink-0 z-10">
+             <svg class="absolute inset-0 w-full h-full opacity-10 pointer-events-none" width="100%" height="100%">
+               <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" stroke-width="0.5"/></pattern>
+               <rect width="100%" height="100%" fill="url(#grid)" />
+             </svg>
+             <div class="absolute top-0 right-0 w-64 h-64 bg-rssu-gold opacity-20 blur-[80px] rounded-full pointer-events-none"></div>
+  
+             <div class="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+                <div class="flex flex-col items-center md:items-start text-center md:text-left">
+                    <div class="flex items-center gap-4 mb-2">
+                       <div class="bg-white p-3 rounded-2xl shadow-lg w-16 h-16 flex items-center justify-center border-2 border-rssu-gold/20">
+                          <img src="https://upload.wikimedia.org/wikipedia/ru/4/42/%D0%A0%D0%93%D0%A1%D0%A3_%D0%BB%D0%BE%D0%B3%D0%BE%D1%82%D0%B8%D0%BF.png" alt="РГСУ" class="w-full h-full object-contain"/>
+                       </div>
+                       <div>
+                         <h1 class="text-2xl md:text-4xl font-black uppercase tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-blue-100 to-white">Pneumo-Box AR</h1>
+                         <div class="h-1 w-12 bg-rssu-gold rounded-full shadow-[0_0_10px_#D4AF37]"></div>
+                       </div>
+                    </div>
+                    <p class="text-blue-100 text-sm font-medium opacity-90 max-w-md mt-2">Инновационный AR-тренажёр технопарка РГСУ для отработки навыков декомпрессии.</p>
+                </div>
+  
+                <div class="grid grid-cols-2 gap-4 w-full md:w-auto mt-4 md:mt-0">
+                  <button onclick="startSimulation('STUDENT')" class="group bg-white hover:bg-blue-50 text-rssu-blue rounded-2xl p-4 md:px-8 shadow-xl active:scale-95 transition-all border-2 border-transparent hover:border-rssu-gold flex flex-col items-center relative overflow-hidden">
+                     <div class="w-10 h-10 bg-rssu-light rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                        <i data-lucide="graduation-cap"></i>
+                     </div>
+                     <span class="font-bold text-xs uppercase tracking-wider">Студент</span>
+                  </button>
+                  <button onclick="startSimulation('INSTRUCTOR')" class="group bg-rssu-dark hover:bg-[#003366] text-white rounded-2xl p-4 md:px-8 shadow-xl active:scale-95 transition-all border border-rssu-gold/30 flex flex-col items-center relative overflow-hidden">
+                     <div class="w-10 h-10 bg-rssu-blue rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform border border-rssu-gold/50">
+                        <i data-lucide="shield-check" class="text-rssu-gold"></i>
+                     </div>
+                     <span class="font-bold text-xs text-rssu-gold uppercase tracking-wider">Инструктор</span>
+                  </button>
+                </div>
+             </div>
+          </div>
+  
+          <!-- Content -->
+          <div class="flex-1 p-6 md:px-12 overflow-y-auto">
+             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Stats -->
+                <div class="md:col-span-2 lg:col-span-1 bg-white p-5 rounded-3xl shadow-sm border border-slate-200 flex justify-between items-center">
+                   <div class="text-center flex-1 border-r border-slate-100">
+                      <div class="text-2xl font-black text-rssu-blue tabular-nums" id="counter1">0%</div>
+                      <div class="text-[9px] uppercase font-bold text-slate-400">Снижение ошибок</div>
+                   </div>
+                   <div class="text-center flex-1 border-r border-slate-100">
+                      <div class="text-2xl font-black text-rssu-gold">AR</div>
+                      <div class="text-[9px] uppercase font-bold text-slate-400">Технология</div>
+                   </div>
+                   <div class="text-center flex-1">
+                      <div class="text-2xl font-black text-green-600 tabular-nums" id="counter2">0%</div>
+                      <div class="text-[9px] uppercase font-bold text-slate-400">Безопасность</div>
+                   </div>
+                </div>
+  
+                <!-- Problem -->
+                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow group">
+                  <h2 class="text-base font-bold text-rssu-blue mb-2 flex items-center gap-2">
+                    <i data-lucide="alert-triangle" class="text-rssu-gold w-5 h-5 group-hover:scale-110 transition-transform"></i> Проблема
+                  </h2>
+                  <p class="text-slate-600 text-xs leading-relaxed text-justify font-medium">
+                    Напряжённый пневмоторакс остаётся ведущей причиной предотвратимой смертности. Частота неудач при игольной декомпрессии достигает 32–50%. Традиционные манекены создают «иллюзию компетентности». Курсант не видит, прошла ли игла опасно близко к артерии.
+                  </p>
+                </div>
+  
+                <!-- Solution -->
+                <div class="md:col-span-2 lg:col-span-3 bg-gradient-to-r from-white to-blue-50 p-6 rounded-3xl shadow-sm border border-blue-100 relative overflow-hidden group">
+                  <div class="absolute top-0 right-0 w-32 h-32 bg-rssu-gold opacity-10 rounded-full blur-3xl transition-opacity group-hover:opacity-20"></div>
+                  <div class="flex flex-col md:flex-row gap-6 relative z-10">
+                     <div class="flex-1">
+                        <h2 class="text-lg font-bold text-rssu-blue mb-2 flex items-center gap-2">
+                          <span class="text-2xl">💡</span> Решение
+                        </h2>
+                        <p class="text-slate-700 text-sm font-medium leading-relaxed">
+                          Прозрачный физический блок + AR-наложение для группового обучения и визуализации анатомии поверх манекена.
+                        </p>
+                     </div>
+                     <div class="flex-1 grid grid-cols-2 gap-3">
+                        <div class="bg-white/60 p-3 rounded-xl border-l-4 border-rssu-gold">
+                           <span class="block text-[10px] font-bold text-slate-400 uppercase">Слой 1</span>
+                           <span class="text-xs font-bold text-rssu-blue">Силикон (Имитация кожи)</span>
+                        </div>
+                        <div class="bg-white/60 p-3 rounded-xl border-l-4 border-rssu-blue">
+                           <span class="block text-[10px] font-bold text-slate-400 uppercase">Слой 2</span>
+                           <span class="text-xs font-bold text-rssu-blue">Силикон (Мышцы)</span>
+                        </div>
+                     </div>
+                  </div>
+                </div>
+             </div>
+             
+             <div class="mt-8 text-center md:text-left md:flex md:justify-between items-center opacity-60">
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Pneumo-Box v1.0 MVP</p>
+                <div class="flex items-center justify-center md:justify-end gap-2 mt-2 md:mt-0">
+                  <span class="text-[10px] text-rssu-blue font-extrabold">Лаборатория промдизайна</span>
+                  <span class="w-1 h-1 rounded-full bg-rssu-gold"></span>
+                  <span class="text-[10px] text-rssu-blue font-extrabold">Технопарк РГСУ</span>
+                </div>
+             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW: AR SIMULATION -->
+      <div id="view-AR_SIMULATION" class="view-container relative h-full w-full flex-col bg-black animate-fadeIn overflow-hidden">
+        
+        <!-- Video Feed -->
+        <div class="absolute inset-0 flex items-center justify-center bg-gray-900 overflow-hidden">
+          <video id="webcamVideo" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover opacity-80 transform scale-x-[-1]"></video>
+          <canvas id="screenshotCanvas" class="hidden"></canvas>
+          
+          <!-- AR SVG Overlay -->
+          <div id="arOverlay" class="absolute inset-0 w-full h-full transition-opacity duration-1000 opacity-0 flex items-center justify-center">
+             <!-- Ambient -->
+            <div class="absolute inset-0 opacity-10 pointer-events-none">
+              <div class="absolute top-8 left-8 w-12 h-12 border-t border-l border-white/40 rounded-tl-xl"></div>
+              <div class="absolute top-8 right-8 w-12 h-12 border-t border-r border-white/40 rounded-tr-xl"></div>
+              <div class="absolute bottom-8 left-8 w-12 h-12 border-b border-l border-white/40 rounded-bl-xl"></div>
+              <div class="absolute bottom-8 right-8 w-12 h-12 border-b border-r border-white/40 rounded-br-xl"></div>
+              <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 border border-white/10 rounded-full animate-[spin_30s_linear_infinite]"></div>
+            </div>
+
+            <!-- SVG Elements -->
+            <svg viewBox="0 0 400 300" class="w-full h-full max-w-lg z-10 opacity-90 pointer-events-none" preserveAspectRatio="xMidYMid slice">
+              <defs>
+                <linearGradient id="boneGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="#e2e8f0" stopOpacity="0.8" />
+                  <stop offset="50%" stopColor="#94a3b8" stopOpacity="0.6" />
+                  <stop offset="100%" stopColor="#e2e8f0" stopOpacity="0.8" />
+                </linearGradient>
+                <linearGradient id="arteryGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#ef4444" stopOpacity="0.8" />
+                  <stop offset="50%" stopColor="#dc2626" stopOpacity="1" />
+                  <stop offset="100%" stopColor="#ef4444" stopOpacity="0.8" />
+                </linearGradient>
+                <pattern id="gridPattern" width="20" height="20" patternUnits="userSpaceOnUse">
+                   <path d="M 20 0 L 0 0 0 20" fill="none" stroke="white" stroke-width="0.5" opacity="0.1"/>
+                </pattern>
+                <filter id="glowGreen"><feGaussianBlur stdDeviation="2" result="coloredBlur"/><feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+              </defs>
+
+              <!-- Ribs -->
+              <g id="layer-ribs" class="transition-opacity duration-300">
+                <path d="M-20,40 Q200,10 420,40 L420,80 Q200,50 -20,80 Z" fill="url(#boneGradient)" stroke="#f8fafc" stroke-width="0.5" filter="url(#glowGreen)" opacity="0.9"/>
+                <text x="20" y="65" fill="#1e293b" font-size="9" font-family="monospace" font-weight="bold">RIB_II</text>
+                <path d="M-20,180 Q200,150 420,180 L420,220 Q200,190 -20,220 Z" fill="url(#boneGradient)" stroke="#f8fafc" stroke-width="0.5" filter="url(#glowGreen)" opacity="0.9"/>
+                <text x="20" y="205" fill="#1e293b" font-size="9" font-family="monospace" font-weight="bold">RIB_III</text>
+              </g>
+
+              <!-- Danger -->
+              <g id="layer-danger" transform="translate(0, 0)" class="transition-opacity duration-300">
+                <line x1="300" y1="80" x2="350" y2="100" stroke="#ef4444" stroke-width="1" />
+                <text x="350" y="110" fill="#ef4444" font-size="8" font-family="monospace">VAN_BUNDLE</text>
+                <path d="M-10,82 Q200,52 410,82" stroke="#3b82f6" stroke-width="4" fill="none" opacity="0.8" />
+                <path id="arteryPath" d="M-10,88 Q200,58 410,88" stroke="url(#arteryGradient)" stroke-width="4" fill="none" class="animate-pulse-fast" />
+                <path d="M-10,94 Q200,64 410,94" stroke="#eab308" stroke-width="3" fill="none" opacity="0.8" />
+                <path d="M-20,80 Q200,50 420,80 L420,100 Q200,70 -20,100 Z" fill="url(#gridPattern)" opacity="0.2" />
+              </g>
+
+              <!-- Safe Target -->
+              <g id="layer-safe" class="transition-opacity duration-300">
+                <path d="M100,150 L300,150 L300,180 L100,180 Z" fill="#22c55e" fill-opacity="0.05" stroke="#22c55e" stroke-width="1" stroke-dasharray="4,2" class="animate-pulse" />
+                <path d="M100,150 L110,150 M100,150 L100,160" stroke="#22c55e" stroke-width="2" />
+                <path d="M300,150 L290,150 M300,150 L300,160" stroke="#22c55e" stroke-width="2" />
+                <path d="M100,180 L110,180 M100,180 L100,170" stroke="#22c55e" stroke-width="2" />
+                <path d="M300,180 L290,180 M300,180 L300,170" stroke="#22c55e" stroke-width="2" />
+                <text x="200" y="168" text-anchor="middle" fill="#22c55e" font-weight="bold" font-size="10" font-family="monospace" letter-spacing="2px" filter="url(#glowGreen)">TARGET_ZONE</text>
+                <text x="200" y="145" text-anchor="middle" fill="#22c55e" font-size="8" font-family="monospace" opacity="0.7">2ND_INTERCOSTAL_SPACE</text>
+              </g>
+
+              <!-- Scan Animation -->
+              <g id="layer-scan" class="hidden">
+                <line x1="0" y1="0" x2="400" y2="0" stroke="#818cf8" stroke-width="2" class="animate-scanLine" />
+                <rect x="0" y="0" width="400" height="300" fill="url(#gridPattern)" opacity="0.1" class="animate-pulse" />
+                <text x="200" y="150" text-anchor="middle" fill="#818cf8" font-size="14" font-family="monospace" font-weight="bold" class="animate-pulse">ANALYZING_TRAJECTORY...</text>
+              </g>
+
+              <!-- Scenarios -->
+              <g id="scenario-artery" class="hidden">
+                <circle cx="200" cy="88" r="30" fill="none" stroke="#ef4444" stroke-width="3" class="animate-ping" opacity="0.8" />
+                <text x="200" y="130" text-anchor="middle" fill="#ef4444" font-size="14" font-weight="bold" font-family="monospace" letter-spacing="1px" filter="url(#glowGreen)">HEMORRHAGE_DETECTED</text>
+              </g>
+              <g id="scenario-safe" class="hidden" transform="translate(200, 165)">
+                <circle cx="0" cy="0" r="4" fill="#22c55e" class="animate-ping" />
+                <circle cx="0" cy="0" r="2" fill="white" />
+                <text x="0" y="-15" text-anchor="middle" fill="#22c55e" font-size="10" font-family="monospace" font-weight="bold">OPTIMAL_ENTRY</text>
+              </g>
+            </svg>
+          </div>
+
+          <!-- Calibration UI -->
+          <div id="calibrationUI" class="absolute inset-0 flex flex-col items-center justify-center z-50">
+            <div class="w-64 h-64 border-2 border-white/50 rounded-3xl relative animate-pulse flex items-center justify-center">
+               <div class="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-rssu-gold -mt-1 -ml-1"></div>
+               <div class="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-rssu-gold -mt-1 -mr-1"></div>
+               <div class="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-rssu-gold -mb-1 -ml-1"></div>
+               <div class="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-rssu-gold -mb-1 -mr-1"></div>
+               <div class="text-rssu-gold font-mono text-xs tracking-widest animate-pulse">ALIGN MANNEQUIN</div>
+               <div class="absolute inset-0 bg-rssu-gold/10 animate-scan"></div>
+            </div>
+            <p class="mt-8 text-white font-mono text-xs uppercase tracking-widest bg-black/50 px-4 py-1 rounded backdrop-blur-md">Calibrating AR Space...</p>
+          </div>
+        </div>
+
+        <div class="absolute inset-0 pointer-events-none z-10 opacity-30" style="background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 50px 50px;"></div>
+        <div class="absolute inset-0 pointer-events-none z-10 bg-[radial-gradient(circle_at_center,transparent_30%,rgba(0,0,0,0.8)_100%)]"></div>
+        <div id="vignette-danger" class="absolute inset-0 pointer-events-none z-10 transition-opacity duration-500 opacity-0 shadow-[inset_0_0_100px_rgba(220,38,38,0.8)]"></div>
+
+        <!-- Top HUD -->
+        <div class="absolute top-0 left-0 right-0 z-30 p-4 flex justify-between items-start safe-top pointer-events-none">
+           <div class="flex flex-col gap-2 pointer-events-auto">
+              <button onclick="switchView('HOME')" class="glass-dark border border-white/10 text-white rounded-lg px-3 py-2 flex items-center gap-2 active:scale-95 transition-all w-fit hover:bg-white/10">
+                 <span class="text-xs font-mono font-bold">← EXIT</span>
+              </button>
+              <div class="glass-dark border border-white/10 rounded-lg p-2 flex flex-col gap-1 w-fit animate-slideUp">
+                 <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_#22c55e]"></div>
+                    <span class="text-[10px] text-white/80 font-mono uppercase hidden md:inline">SYSTEM_ONLINE</span>
+                 </div>
+                 <div id="hud-role-badge" class="text-[9px] font-bold px-1.5 py-0.5 rounded border border-rssu-gold text-rssu-gold bg-yellow-900/20 uppercase text-center hidden">STUDENT</div>
+              </div>
+           </div>
+           <div class="flex flex-col items-end gap-2 pointer-events-auto">
+              <div class="flex gap-2">
+                 <button id="btn-finish" class="hidden bg-green-600/90 hover:bg-green-500 backdrop-blur-md text-white rounded-lg px-4 py-2 text-xs font-mono font-bold uppercase tracking-wider border border-green-400/50 shadow-lg active:scale-95">Finish</button>
+                 <button id="btn-record" class="hidden flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-mono font-bold transition-all border backdrop-blur-md glass-dark border-white/10 text-slate-300">
+                   <div class="w-2 h-2 rounded-full bg-red-500"></div> REC
+                 </button>
+              </div>
+              <div id="scenario-badge" class="hidden px-3 py-1.5 rounded border backdrop-blur-md flex items-center gap-2 animate-slideUp">
+                <span id="scenario-text" class="text-[10px] font-mono font-bold uppercase tracking-widest"></span>
+              </div>
+           </div>
+        </div>
+
+        <!-- Instructor Controls (Desktop/Right) -->
+        <div id="panel-instructor" class="hidden absolute inset-0 pointer-events-none z-20 flex-col justify-end md:justify-center md:items-end p-4 md:p-8 safe-bottom">
+          <div class="pointer-events-auto glass-dark border border-white/10 rounded-2xl p-4 shadow-2xl flex flex-col gap-4 w-full md:w-80 animate-slideUp">
+            <div class="grid grid-cols-3 gap-2">
+              <button onclick="setScenario('SAFE_PATH')" class="h-10 rounded-lg border flex items-center justify-center transition-all active:scale-95 bg-white/5 border-white/5 text-slate-400 hover:bg-white/10"><span class="text-[10px] font-mono font-bold uppercase">Normal</span></button>
+              <button onclick="setScenario('SHORT_NEEDLE_FAIL')" class="h-10 rounded-lg border flex items-center justify-center transition-all active:scale-95 bg-white/5 border-white/5 text-slate-400 hover:bg-white/10"><span class="text-[10px] font-mono font-bold uppercase">Short</span></button>
+              <button onclick="setScenario('ARTERY_HIT')" class="h-10 rounded-lg border flex items-center justify-center transition-all active:scale-95 bg-white/5 border-white/5 text-slate-400 hover:bg-white/10"><span class="text-[10px] font-mono font-bold uppercase">Bleed</span></button>
+            </div>
+            <div class="flex justify-between items-center bg-black/40 rounded-xl p-2 px-4">
+                <span class="text-[10px] text-slate-400 font-mono uppercase mr-2">LAYERS</span>
+                <div class="flex gap-4">
+                  <button onclick="toggleLayer('ribs')" id="btn-layer-ribs" class="w-8 h-8 rounded-full border flex items-center justify-center transition-all bg-rssu-blue border-rssu-gold text-white shadow-[0_0_10px_#004077]"><span class="text-[10px] font-bold">R</span></button>
+                  <button onclick="toggleLayer('danger')" id="btn-layer-danger" class="w-8 h-8 rounded-full border flex items-center justify-center transition-all bg-rssu-blue border-rssu-gold text-white shadow-[0_0_10px_#004077]"><span class="text-[10px] font-bold">D</span></button>
+                  <button onclick="toggleLayer('safe')" id="btn-layer-safe" class="w-8 h-8 rounded-full border flex items-center justify-center transition-all bg-rssu-blue border-rssu-gold text-white shadow-[0_0_10px_#004077]"><span class="text-[10px] font-bold">S</span></button>
+                </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Student Controls (Desktop/Right) -->
+        <div id="panel-student" class="hidden absolute inset-0 pointer-events-none z-20 flex-col justify-end md:justify-center md:items-end p-4 md:p-8 safe-bottom">
+          <div class="pointer-events-auto w-full md:w-80 transition-all duration-300 ease-out flex flex-col items-end">
+            <div class="flex gap-2 mb-2 w-full justify-end">
+                <button onclick="performAIAnalysis()" id="btn-ai" class="glass-dark border border-indigo-400 text-white px-4 py-2 rounded-lg text-xs font-mono font-bold uppercase tracking-wider shadow-lg flex items-center gap-2 hover:bg-indigo-900/40 transition-colors">AI Check</button>
+                <button onclick="toggleChecklist()" class="glass-dark border border-white/10 text-white w-10 h-10 rounded-lg flex items-center justify-center active:scale-95">
+                  <i data-lucide="chevron-up" id="icon-checklist" class="transition-transform duration-300 w-5 h-5"></i>
+                </button>
+            </div>
+            <div id="checklist-container" class="w-full glass-dark border border-white/10 rounded-2xl overflow-hidden shadow-2xl transition-all duration-300 max-h-24">
+                <div class="h-1 w-full bg-white/10">
+                  <div id="checklist-progress" class="h-full bg-rssu-gold transition-all duration-500" style="width: 0%"></div>
+                </div>
+                <!-- Minimized View -->
+                <div id="checklist-min" class="p-4 flex items-center justify-between cursor-pointer active:bg-white/5" onclick="toggleChecklist()">
+                    <div class="flex flex-col">
+                      <span class="text-[9px] text-rssu-gold font-mono uppercase tracking-widest mb-1" id="checklist-min-step">STEP 1/5</span>
+                      <span class="text-white text-sm font-medium leading-tight line-clamp-1" id="checklist-min-text">Идентифицировать угол Луи</span>
+                    </div>
+                    <div class="w-6 h-6 rounded-full border-2 flex items-center justify-center border-white/30 text-transparent">✓</div>
+                </div>
+                <!-- Expanded View -->
+                <div id="checklist-full" class="hidden p-4 space-y-3 overflow-y-auto max-h-80 custom-scrollbar">
+                    <div class="flex justify-between items-center mb-2">
+                      <span class="text-[10px] text-slate-400 font-mono uppercase">CHECKLIST</span>
+                      <span class="text-[10px] text-white font-mono" id="checklist-pct">0%</span>
+                    </div>
+                    <div id="checklist-items"></div>
+                </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Feedback Toast -->
+        <div id="ai-toast" class="hidden absolute top-1/3 left-4 right-4 md:left-auto md:right-10 md:w-80 glass-dark border-l-4 border-rssu-gold p-4 rounded-r-lg shadow-2xl animate-slideUp z-40">
+           <div class="flex justify-between mb-1">
+             <span class="text-[10px] text-rssu-gold font-mono uppercase">AI_ANALYSIS_RESULT</span>
+             <button onclick="document.getElementById('ai-toast').classList.add('hidden')" class="text-white/50 hover:text-white">✕</button>
+           </div>
+           <p id="ai-toast-text" class="text-white text-xs font-mono leading-relaxed"></p>
+        </div>
+      </div>
+
+      <!-- VIEW: RESEARCH DATA -->
+      <div id="view-RESEARCH_DATA" class="view-container bg-rssu-light bg-noise overflow-y-auto pb-28 p-6 flex-col custom-scrollbar">
+        <div class="max-w-7xl mx-auto w-full">
+          <div class="flex items-center justify-between mb-8 sticky top-0 glass-panel z-10 py-3 px-4 -mx-6 rounded-b-3xl shadow-sm">
+              <div>
+                <h1 class="text-2xl font-extrabold text-rssu-blue tracking-tight">Данные</h1>
+                <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Исследование и Валидация</p>
+              </div>
+              <button class="bg-white p-2.5 rounded-xl shadow-sm border border-slate-200"><i data-lucide="download" class="text-rssu-blue w-5 h-5"></i></button>
+          </div>
+    
+          <section class="mb-8">
+            <div class="flex justify-between items-end mb-4">
+                 <h2 class="text-xs uppercase tracking-[0.1em] text-slate-500 font-bold ml-1 border-l-4 border-rssu-gold pl-3">Валидация (Shore A/D)</h2>
+                 <span class="text-[10px] text-rssu-blue bg-blue-50 px-3 py-1 rounded-full font-bold shadow-sm">N=150</span>
+            </div>
+            <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 h-80 hover:shadow-lg transition-shadow duration-300 relative w-full flex items-center justify-center">
+               <canvas id="hardnessChart"></canvas>
+            </div>
+          </section>
+    
+           <section>
+            <h2 class="text-xs uppercase tracking-[0.1em] text-slate-500 font-bold mb-4 ml-1 border-l-4 border-rssu-gold pl-3">Метрики успеха</h2>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="bg-white p-5 rounded-3xl border border-slate-100 hover:shadow-lg transition-all group relative overflow-hidden active:scale-95">
+                 <div class="absolute top-0 left-0 w-1 h-full bg-rssu-blue"></div>
+                 <div class="text-4xl font-black text-rssu-blue group-hover:scale-110 transition-transform origin-left">92%</div>
+                 <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-2">Точность прокола</div>
+              </div>
+              <div class="bg-white p-5 rounded-3xl border border-slate-100 hover:shadow-lg transition-all group relative overflow-hidden active:scale-95">
+                 <div class="absolute top-0 left-0 w-1 h-full bg-rssu-gold"></div>
+                 <div class="text-4xl font-black text-rssu-gold group-hover:scale-110 transition-transform origin-left">4.8</div>
+                 <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-2">Оценка (Likert)</div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script>
+    // === INITIALIZATION ===
+    lucide.createIcons();
+
+    // === STATE ===
+    const state = {
+      view: 'HOME', // HOME, AR_SIMULATION, RESEARCH_DATA
+      role: null, // STUDENT, INSTRUCTOR
+      isChecklistExpanded: false,
+      scenario: 'IDLE', // IDLE, SAFE_PATH, SHORT_NEEDLE_FAIL, ARTERY_HIT
+      layers: { ribs: true, danger: true, safe: true },
+      checklist: [
+        { id: 1, text: "Идентифицировать угол Луи", check: false, layer: 'ribs' },
+        { id: 2, text: "Найти 2-е межреберье", check: false, layer: 'ribs' },
+        { id: 3, text: "Зона опасности (сосуды)", check: false, layer: 'danger' },
+        { id: 4, text: "Точка вкола (верх 3-го ребра)", check: false, layer: 'safe' },
+        { id: 5, text: "Контроль глубины", check: false, layer: 'pleura' }
+      ]
+    };
+
+    // === APP LOGIC ===
+    setTimeout(() => {
+      document.getElementById('splashScreen').classList.add('opacity-0', 'pointer-events-none');
+      setTimeout(() => {
+        document.getElementById('splashScreen').style.display = 'none';
+        document.getElementById('appRoot').classList.remove('hidden');
+        document.getElementById('appRoot').classList.add('opacity-100');
+        switchView('HOME');
+        initCharts();
+      }, 500);
+    }, 2500);
+
+    function animateCounter(id, endValue, suffix = '%') {
+      const el = document.getElementById(id);
+      if (!el) return;
+      let startTime = null;
+      const duration = 1500;
+      const step = (timestamp) => {
+        if (!startTime) startTime = timestamp;
+        const progress = Math.min((timestamp - startTime) / duration, 1);
+        el.innerText = Math.floor(progress * endValue) + suffix;
+        if (progress < 1) window.requestAnimationFrame(step);
+      };
+      window.requestAnimationFrame(step);
+    }
+
+    function switchView(viewName) {
+      state.view = viewName;
+      
+      // Hide all
+      document.querySelectorAll('.view-container').forEach(el => el.classList.remove('view-active'));
+      // Show target
+      const targetView = document.getElementById(`view-${viewName}`);
+      if (targetView) targetView.classList.add('view-active');
+
+      // Mapping for navigation IDs
+      const navKeys = {
+        'HOME': 'HOME',
+        'AR_SIMULATION': 'AR',
+        'RESEARCH_DATA': 'DATA'
+      };
+
+      // Update Nav active states
+      ['HOME', 'AR_SIMULATION', 'RESEARCH_DATA'].forEach(v => {
+        const key = navKeys[v];
+        const mobBtn = document.getElementById(`nav-mob-${key}`);
+        const deskBtn = document.getElementById(`nav-desk-${key}`);
+        
+        if (!mobBtn || !deskBtn) return; // Prevent TypeError if element is missing
+        
+        if (v === viewName) {
+          // Mobile active styles
+          mobBtn.classList.add('text-rssu-blue', '-translate-y-2');
+          mobBtn.classList.remove('text-slate-400');
+          mobBtn.querySelector('.nav-indicator')?.classList.remove('hidden');
+          mobBtn.querySelector('.nav-icon-wrapper')?.classList.add('scale-125', 'drop-shadow-md', 'bg-white', 'p-2', 'rounded-2xl');
+          mobBtn.querySelector('.nav-label')?.classList.add('opacity-100', 'translate-y-0', 'text-rssu-blue');
+          mobBtn.querySelector('.nav-label')?.classList.remove('opacity-0', 'translate-y-2');
+          
+          // Desktop active styles
+          deskBtn.querySelector('.nav-indicator')?.classList.remove('hidden');
+          deskBtn.querySelector('.nav-icon-wrapper')?.classList.add('bg-rssu-light', 'text-rssu-blue', 'shadow-inner');
+          deskBtn.querySelector('.nav-icon-wrapper')?.classList.remove('text-slate-400', 'hover:bg-slate-50');
+          deskBtn.querySelector('.nav-label')?.classList.add('text-rssu-blue');
+          deskBtn.querySelector('.nav-label')?.classList.remove('text-slate-400');
+        } else {
+          // Reset styles
+          mobBtn.classList.remove('text-rssu-blue', '-translate-y-2');
+          mobBtn.classList.add('text-slate-400');
+          mobBtn.querySelector('.nav-indicator')?.classList.add('hidden');
+          mobBtn.querySelector('.nav-icon-wrapper')?.classList.remove('scale-125', 'drop-shadow-md', 'bg-white', 'p-2', 'rounded-2xl');
+          mobBtn.querySelector('.nav-label')?.classList.remove('opacity-100', 'translate-y-0', 'text-rssu-blue');
+          mobBtn.querySelector('.nav-label')?.classList.add('opacity-0', 'translate-y-2');
+
+          deskBtn.querySelector('.nav-indicator')?.classList.add('hidden');
+          deskBtn.querySelector('.nav-icon-wrapper')?.classList.remove('bg-rssu-light', 'text-rssu-blue', 'shadow-inner');
+          deskBtn.querySelector('.nav-icon-wrapper')?.classList.add('text-slate-400', 'hover:bg-slate-50');
+          deskBtn.querySelector('.nav-label')?.classList.remove('text-rssu-blue');
+          deskBtn.querySelector('.nav-label')?.classList.add('text-slate-400');
+        }
+      });
+
+      if (viewName === 'HOME') {
+        animateCounter('counter1', 50);
+        animateCounter('counter2', 100);
+        stopCamera();
+      } else if (viewName === 'AR_SIMULATION') {
+        initAR();
+      } else {
+        stopCamera();
+      }
+    }
+
+    // === AR LOGIC ===
+    let stream = null;
+
+    async function initAR() {
+      // Start Camera
+      const video = document.getElementById('webcamVideo');
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      } catch (e) {
+        try { stream = await navigator.mediaDevices.getUserMedia({ video: true }); } 
+        catch (err) { console.warn("Camera failed"); }
+      }
+      if (stream) video.srcObject = stream;
+
+      // Reset UI
+      document.getElementById('calibrationUI').classList.remove('hidden');
+      document.getElementById('arOverlay').classList.add('opacity-0');
+      document.getElementById('panel-instructor').classList.add('hidden');
+      document.getElementById('panel-student').classList.add('hidden');
+      
+      // Simulate Calibration
+      setTimeout(() => {
+        document.getElementById('calibrationUI').classList.add('hidden');
+        document.getElementById('arOverlay').classList.remove('opacity-0');
+        
+        if (state.role === 'INSTRUCTOR') {
+          document.getElementById('panel-instructor').classList.remove('hidden');
+          document.getElementById('panel-instructor').classList.add('flex');
+        } else {
+          document.getElementById('panel-student').classList.remove('hidden');
+          document.getElementById('panel-student').classList.add('flex');
+          document.getElementById('hud-role-badge').classList.remove('hidden');
+          renderChecklist();
+        }
+      }, 2000);
+    }
+
+    function stopCamera() {
+      if (stream) stream.getTracks().forEach(t => t.stop());
+    }
+
+    function startSimulation(role) {
+      state.role = role;
+      switchView('AR_SIMULATION');
+    }
+
+    // --- STUDENT LOGIC ---
+    function toggleChecklist() {
+      state.isChecklistExpanded = !state.isChecklistExpanded;
+      const container = document.getElementById('checklist-container');
+      const min = document.getElementById('checklist-min');
+      const full = document.getElementById('checklist-full');
+      const icon = document.getElementById('icon-checklist');
+
+      if (state.isChecklistExpanded) {
+        container.classList.replace('max-h-24', 'max-h-96');
+        min.classList.add('hidden');
+        full.classList.remove('hidden');
+        icon.style.transform = 'rotate(180deg)';
+      } else {
+        container.classList.replace('max-h-96', 'max-h-24');
+        min.classList.remove('hidden');
+        full.classList.add('hidden');
+        icon.style.transform = 'rotate(0deg)';
+      }
+    }
+
+    function checkStep(id) {
+      const step = state.checklist.find(s => s.id === id);
+      step.check = !step.check;
+      if(step.check && step.layer) {
+        state.layers[step.layer] = true;
+        updateLayersUI();
+      }
+      renderChecklist();
+    }
+
+    function renderChecklist() {
+      const container = document.getElementById('checklist-items');
+      container.innerHTML = '';
+      let completed = 0;
+      let activeIndex = state.checklist.findIndex(s => !s.check);
+      if(activeIndex === -1) activeIndex = state.checklist.length - 1;
+
+      state.checklist.forEach((step, idx) => {
+        if(step.check) completed++;
+        const isActive = idx === activeIndex;
+        
+        const div = document.createElement('div');
+        div.className = `flex items-start gap-3 p-3 rounded-lg border transition-all active:scale-95 cursor-pointer ${step.check ? 'bg-green-900/20 border-green-500/30' : (isActive ? 'bg-white/10 border-rssu-gold/50' : 'bg-transparent border-transparent opacity-50')}`;
+        div.onclick = () => checkStep(step.id);
+        
+        div.innerHTML = `
+          <div class="mt-0.5 w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold border ${step.check ? 'bg-green-500 border-green-500 text-black' : 'border-slate-500 text-slate-500'}">
+            ${step.check ? '✓' : idx + 1}
+          </div>
+          <span class="text-xs font-mono leading-snug ${step.check ? 'text-green-200 line-through' : 'text-slate-200'}">${step.text}</span>
+        `;
+        container.appendChild(div);
+      });
+
+      const pct = Math.round((completed / state.checklist.length) * 100);
+      document.getElementById('checklist-progress').style.width = `${pct}%`;
+      document.getElementById('checklist-pct').innerText = `${pct}%`;
+      
+      const currentStep = state.checklist[activeIndex];
+      document.getElementById('checklist-min-step').innerText = `STEP ${activeIndex + 1}/${state.checklist.length}`;
+      document.getElementById('checklist-min-text').innerText = currentStep.text;
+    }
+
+    async function performAIAnalysis() {
+      // Show scan animation
+      document.getElementById('layer-scan').classList.remove('hidden');
+      const btn = document.getElementById('btn-ai');
+      btn.innerHTML = '<span class="w-2 h-2 bg-white rounded-full animate-ping"></span> Scanning...';
+      
+      // Simulate network request (MOCK FOR PRESENTATION)
+      setTimeout(() => {
+        document.getElementById('layer-scan').classList.add('hidden');
+        btn.innerHTML = 'AI Check';
+        
+        // Show result toast
+        const toast = document.getElementById('ai-toast');
+        const text = document.getElementById('ai-toast-text');
+        text.innerText = "Игла визуализируется в безопасной зоне. Траектория корректна, попадание по верхнему краю 3-го ребра.";
+        toast.classList.remove('hidden');
+        
+        if (navigator.vibrate) navigator.vibrate([50, 50, 100]);
+      }, 2000);
+    }
+
+    // --- INSTRUCTOR LOGIC ---
+    function setScenario(scen) {
+      state.scenario = scen;
+      
+      // Reset UI
+      document.getElementById('scenario-artery').classList.add('hidden');
+      document.getElementById('scenario-safe').classList.add('hidden');
+      document.getElementById('vignette-danger').classList.add('opacity-0');
+      document.getElementById('arteryPath').classList.replace('animate-pulse-fast', 'animate-[pulse_2s_infinite]');
+      
+      const badge = document.getElementById('scenario-badge');
+      const badgeText = document.getElementById('scenario-text');
+      badge.classList.remove('hidden', 'bg-green-900/60', 'border-green-500', 'text-green-400', 'bg-red-900/60', 'border-red-500', 'text-red-400', 'bg-yellow-900/60', 'border-yellow-500', 'text-yellow-400');
+
+      if (scen === 'ARTERY_HIT') {
+        document.getElementById('scenario-artery').classList.remove('hidden');
+        document.getElementById('vignette-danger').classList.remove('opacity-0');
+        document.getElementById('arteryPath').classList.replace('animate-[pulse_2s_infinite]', 'animate-pulse-fast');
+        badge.classList.add('bg-red-900/60', 'border-red-500', 'text-red-400');
+        badgeText.innerText = 'CRITICAL_FAIL';
+      } else if (scen === 'SAFE_PATH') {
+        document.getElementById('scenario-safe').classList.remove('hidden');
+        badge.classList.add('bg-green-900/60', 'border-green-500', 'text-green-400');
+        badgeText.innerText = 'TRAJECTORY_OK';
+      } else if (scen === 'SHORT_NEEDLE_FAIL') {
+        badge.classList.add('bg-yellow-900/60', 'border-yellow-500', 'text-yellow-400');
+        badgeText.innerText = 'DEPTH_ERROR';
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+
+    function toggleLayer(layerName) {
+      state.layers[layerName] = !state.layers[layerName];
+      updateLayersUI();
+    }
+
+    function updateLayersUI() {
+      Object.keys(state.layers).forEach(layer => {
+        const svgEl = document.getElementById(`layer-${layer}`);
+        const btnEl = document.getElementById(`btn-layer-${layer}`);
+        if(svgEl) {
+          if(state.layers[layer]) svgEl.classList.remove('opacity-0');
+          else svgEl.classList.add('opacity-0');
+        }
+        if(btnEl) {
+          if(state.layers[layer]) {
+            btnEl.classList.add('bg-rssu-blue', 'border-rssu-gold', 'text-white', 'shadow-[0_0_10px_#004077]');
+            btnEl.classList.remove('bg-transparent', 'border-slate-600', 'text-slate-600');
+          } else {
+            btnEl.classList.remove('bg-rssu-blue', 'border-rssu-gold', 'text-white', 'shadow-[0_0_10px_#004077]');
+            btnEl.classList.add('bg-transparent', 'border-slate-600', 'text-slate-600');
+          }
+        }
+      });
+    }
+
+    // === CHART LOGIC ===
+    let myChart = null;
+    function initCharts() {
+      const ctx = document.getElementById('hardnessChart');
+      if (!ctx || myChart) return;
+
+      myChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['Кожа', 'Мышцы', 'Сосуды', 'Рёбра'],
+          datasets: [
+            { label: 'Био. норма', data: [44, 24, 75, 90], backgroundColor: '#cbd5e1', borderRadius: 4, barThickness: 12 },
+            { label: 'Pneumo-Box', data: [42, 25, 75, 80], backgroundColor: '#004077', borderRadius: 4, barThickness: 12 }
+          ]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'top', labels: { boxWidth: 10, font: { family: 'Inter', size: 11, weight: 'bold' } } },
+            tooltip: { backgroundColor: 'rgba(255,255,255,0.95)', titleColor: '#004077', bodyColor: '#333', borderColor: '#e2e8f0', borderWidth: 1, padding: 10, cornerRadius: 8 }
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { display: false }, border: { display: false } },
+            y: { grid: { color: '#f1f5f9' }, border: { display: false }, ticks: { font: { family: 'Inter', size: 12, weight: 'bold' }, color: '#004077' } }
+          }
+        }
+      });
+    }
+
+  </script>
+</body>
+</html>
