@@ -18,6 +18,9 @@
   <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 
+  <!-- AR.js and A-Frame for Marker Detection -->
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
+  
   <script>
     tailwind.config = {
       theme: {
@@ -255,6 +258,16 @@
         <div class="absolute inset-0 flex items-center justify-center bg-gray-900 overflow-hidden">
           <video id="webcamVideo" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover opacity-80 transform scale-x-[-1]"></video>
           <canvas id="screenshotCanvas" class="hidden"></canvas>
+          
+          <!-- AR.js Scene -->
+          <a-scene embedded arjs='sourceType: webcam; detectionMode: mono; maxDetectionRate: 30;' renderer='antialias: true; alpha: true;'>
+            <a-marker type="pattern" url="./0393b2e9-8142-4e9d-867b-cdab7be6f0a6.jfif">
+              <a-entity position="0 0 0">
+                <a-box position="0 0.5 0" material="color: red"></a-box>
+              </a-entity>
+            </a-marker>
+            <a-camera gps-camera rotation-reader></a-camera>
+          </a-scene>
           
           <!-- AR SVG Overlay -->
           <div id="arOverlay" class="absolute inset-0 w-full h-full transition-opacity duration-1000 opacity-0 flex items-center justify-center">
@@ -648,44 +661,44 @@
       }
     }
 
-    // === AR LOGIC ===
-    let stream = null;
-
-    async function initAR() {
-      // Start Camera
-      const video = document.getElementById('webcamVideo');
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-      } catch (e) {
-        try { stream = await navigator.mediaDevices.getUserMedia({ video: true }); } 
-        catch (err) { console.warn("Camera failed"); }
-      }
-      if (stream) video.srcObject = stream;
-
-      // Reset UI Elements
-      document.getElementById('calibrationUI').classList.add('hidden');
-      document.getElementById('arOverlay').classList.add('opacity-0');
-      document.getElementById('panel-instructor').classList.add('hidden');
-      document.getElementById('panel-student').classList.add('hidden');
-      document.getElementById('qrScannerUI').classList.add('hidden');
-      
-      // Update System Status
-      const statusDot = document.getElementById('system-status-dot');
-      const statusText = document.getElementById('system-status-text');
-      statusDot.classList.replace('bg-green-500', 'bg-red-500');
-      statusDot.classList.remove('shadow-[0_0_8px_#22c55e]');
-      statusText.innerText = "SYSTEM_OFFLINE";
-      
-      if (state.role === 'STUDENT') {
-         // Show QR Scanner
-         document.getElementById('qrScannerUI').classList.remove('hidden');
-         document.getElementById('hud-role-badge').classList.remove('hidden');
-         document.getElementById('btn-finish').classList.remove('hidden');
-      } else if (state.role === 'INSTRUCTOR') {
-         // Skip to Calibration
-         startCalibration();
-      }
-    }
+        // === AR LOGIC ===
+        let stream = null;
+    
+        async function initAR() {
+          // Start Camera
+          const video = document.getElementById('webcamVideo');
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+          } catch (e) {
+            try { stream = await navigator.mediaDevices.getUserMedia({ video: true }); } 
+            catch (err) { console.warn("Camera failed"); }
+          }
+          if (stream) video.srcObject = stream;
+    
+          // Reset UI Elements
+          document.getElementById('calibrationUI').classList.add('hidden');
+          document.getElementById('arOverlay').classList.add('opacity-0');
+          document.getElementById('panel-instructor').classList.add('hidden');
+          document.getElementById('panel-student').classList.add('hidden');
+          document.getElementById('qrScannerUI').classList.add('hidden');
+          
+          // Update System Status
+          const statusDot = document.getElementById('system-status-dot');
+          const statusText = document.getElementById('system-status-text');
+          statusDot.classList.replace('bg-green-500', 'bg-red-500');
+          statusDot.classList.remove('shadow-[0_0_8px_#22c55e]');
+          statusText.innerText = "SYSTEM_OFFLINE";
+          
+          if (state.role === 'STUDENT') {
+             // Show QR Scanner
+             document.getElementById('qrScannerUI').classList.remove('hidden');
+             document.getElementById('hud-role-badge').classList.remove('hidden');
+             document.getElementById('btn-finish').classList.remove('hidden');
+          } else if (state.role === 'INSTRUCTOR') {
+             // Skip to Calibration
+             startCalibration();
+          }
+        }
     
     function handleQrScan() {
        if (navigator.vibrate) navigator.vibrate([100]);
